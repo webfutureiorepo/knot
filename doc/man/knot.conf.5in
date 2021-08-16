@@ -1672,6 +1672,7 @@ zone:
     zonemd\-verify: BOOL
     zonemd\-generate: none | zonemd\-sha384 | zonemd\-sha512
     serial\-policy: increment | unixtime | dateserial
+    reverse\-generate: DNAME
     refresh\-min\-interval: TIME
     refresh\-max\-interval: TIME
     catalog\-role: none | interpret | generate | member
@@ -1997,6 +1998,23 @@ one update per second per zone.
 .UNINDENT
 .sp
 \fIDefault:\fP increment
+.SS reverse\-generate
+.sp
+Triggers auto\-generating reverse PTR records into this zone, based on A/AAAA records
+in the zone specified by this option.
+.sp
+Limitations (may be relaxed in the future):
+.INDENT 0.0
+.IP \(bu 2
+Only one zone to be reversed can be specified.
+.IP \(bu 2
+Requires \fI\%journal\-content\fP: \fBall\fP and
+\fI\%zonefile\-load\fP: \fBdifference\-no\-serial\fP\&.
+.IP \(bu 2
+Is slow for large zones (even when changing a little).
+.UNINDENT
+.sp
+\fIDefault:\fP none
 .SS refresh\-min\-interval
 .sp
 Forced minimum zone refresh interval to avoid flooding primary server.

@@ -94,6 +94,7 @@
 #define C_REFRESH_MAX_INTERVAL	"\x14""refresh-max-interval"
 #define C_REFRESH_MIN_INTERVAL	"\x14""refresh-min-interval"
 #define C_REPRO_SIGNING		"\x14""reproducible-signing"
+#define C_REVERSE_GEN		"\x10""reverse-generate"
 #define C_RMT			"\x06""remote"
 #define C_ROUTE_CHECK		"\x0B""route-check"
 #define C_RRSIG_LIFETIME	"\x0E""rrsig-lifetime"

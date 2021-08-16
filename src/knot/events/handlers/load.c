@@ -15,6 +15,7 @@
  */
 
 #include <assert.h>
+#include <urcu.h>
 
 #include "knot/catalog/generate.h"
 #include "knot/common/log.h"
@@ -23,6 +24,7 @@
 #include "knot/dnssec/zone-events.h"
 #include "knot/events/handlers.h"
 #include "knot/events/replan.h"
+#include "knot/zone/reverse.h"
 #include "knot/zone/serial.h"
 #include "knot/zone/zone-diff.h"
 #include "knot/zone/zone-load.h"
@@ -113,6 +115,21 @@ int event_load(conf_t *conf, zone_t *zone)
 		zone->zonefile.serial = zone_contents_serial(zf_conts);
 		zone->zonefile.exists = (zf_conts != NULL);
 		zone->zonefile.mtime = mtime;
+
+		// If configured, add reverse records to zone contents
+		if (zone->reverse_from != NULL) {
+			ret = KNOT_ENOZONE;
+			rcu_read_lock();
+			zone_contents_t *rev_from = zone->reverse_from->contents;
+			if (rev_from != NULL) {
+				ret = zone_reverse(rev_from, zf_conts, NULL, false);
+			}
+			rcu_read_unlock();
+			if (ret != KNOT_EOK) {
+				log_zone_error(zone->name, "zone to be reversed not loaded");
+				goto cleanup;
+			}
+		}
 
 		// If configured and possible, fix the SOA serial of zonefile.
 		zone_contents_t *relevant = (zone->contents != NULL ? zone->contents : journal_conts);

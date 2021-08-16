@@ -82,6 +82,7 @@ class Zone(object):
         self.ixfr = ixfr
         self.journal_content = journal_content # journal contents
         self.modules = []
+        self.reverse_from = None
         self.dnssec = ZoneDnssec()
         self.catalog = None
         self.catalog_zone = None
@@ -1494,6 +1495,9 @@ class Knot(Server):
                 s.item_str("serial-policy", self.serial_policy)
 
             s.item_str("journal-content", z.journal_content)
+            
+            if z.reverse_from:
+                s.item_str("reverse-generate", z.reverse_from.name)
 
             if self.zonefile_load is not None:
                 s.item_str("zonefile-load", self.zonefile_load)
