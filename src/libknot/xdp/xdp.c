@@ -156,6 +156,42 @@ static int configure_xsk_socket(struct kxsk_umem *umem,
 	return KNOT_EOK;
 }
 
+// TODO remove
+#define SO_PREFER_BUSY_POLL	69
+#define SO_BUSY_POLL_BUDGET	70
+//
+
+static int enable_busypoll(knot_xdp_socket_t *socket, int timeout_us, int budget)
+{
+	if (timeout_us == 0) {
+		return KNOT_EOK;
+	}
+
+#if defined(SO_PREFER_BUSY_POLL) && defined(SO_BUSY_POLL_BUDGET)
+	int opt_val = 1;
+	if (setsockopt(xsk_socket__fd(socket->xsk), SOL_SOCKET, SO_PREFER_BUSY_POLL,
+	               &opt_val, sizeof(opt_val)) != 0) {
+		return knot_map_errno();
+	}
+
+	opt_val = timeout_us;
+	if (setsockopt(xsk_socket__fd(socket->xsk), SOL_SOCKET, SO_BUSY_POLL,
+	               &opt_val, sizeof(opt_val)) != 0) {
+		return knot_map_errno();
+	}
+
+	opt_val = budget;
+	if (setsockopt(xsk_socket__fd(socket->xsk), SOL_SOCKET, SO_BUSY_POLL_BUDGET,
+	               &opt_val, sizeof(opt_val)) != 0) {
+		return knot_map_errno();
+	}
+
+	return KNOT_EOK;
+#else
+	return KNOT_ENOTSUP;
+#endif
+}
+
 _public_
 int knot_xdp_init(knot_xdp_socket_t **socket, const char *if_name, int if_queue,
                   uint32_t listen_port, knot_xdp_load_bpf_t load_bpf)
@@ -182,6 +218,16 @@ int knot_xdp_init(knot_xdp_socket_t **socket, const char *if_name, int if_queue,
 	if (ret != KNOT_EOK) {
 		deconfigure_xsk_umem(umem);
 		kxsk_iface_free(iface);
+		return ret;
+	}
+
+	ret = enable_busypoll(*socket, 200000, 32);
+	if (ret != KNOT_EOK) {
+		xsk_socket__delete((*socket)->xsk);
+		deconfigure_xsk_umem(umem);
+		kxsk_iface_free(iface);
+		free(*socket);
+		*socket = NULL;
 		return ret;
 	}
 
@@ -254,6 +300,7 @@ void knot_xdp_send_prepare(knot_xdp_socket_t *socket)
 	uint32_t idx = 0;
 	const uint32_t completed = xsk_ring_cons__peek(cq, UINT32_MAX, &idx);
 	if (completed == 0) {
+		recvfrom(xsk_socket__fd(socket->xsk), NULL, 0, MSG_DONTWAIT, NULL, NULL);
 		return;
 	}
 	assert(umem->tx_free_count + completed <= UMEM_FRAME_COUNT_TX);
@@ -454,6 +501,7 @@ int knot_xdp_recv(knot_xdp_socket_t *socket, knot_xdp_msg_t msgs[],
 	const uint32_t available = xsk_ring_cons__peek(&socket->rx, max_count, &idx);
 	if (available == 0) {
 		*count = 0;
+		recvfrom(xsk_socket__fd(socket->xsk), NULL, 0, MSG_DONTWAIT, NULL, NULL);
 		return KNOT_EOK;
 	}
 	assert(available <= max_count);
