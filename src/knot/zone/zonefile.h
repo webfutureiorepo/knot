@@ -44,7 +44,7 @@ typedef struct {
 } zloader_t;
 
 void err_handler_logger(sem_handler_t *handler, const zone_contents_t *zone,
-                        const zone_node_t *node, sem_error_t error, const char *data);
+                        const knot_dname_t *node, sem_error_t error, const char *data);
 
 /*!
  * \brief Open zone file for loading.

@@ -102,12 +102,9 @@ typedef struct sem_handler sem_handler_t;
 
 /*!
  * \brief Callback for handle error.
- *
- * Return KNOT_EOK to continue in semantic checks.
- * Return other KNOT_E* to stop semantic check with error.
  */
 typedef void (*sem_callback) (sem_handler_t *ctx, const zone_contents_t *zone,
-                              const zone_node_t *node, sem_error_t error, const char *data);
+                              const knot_dname_t *node, sem_error_t error, const char *data);
 
 struct sem_handler {
 	sem_callback cb;

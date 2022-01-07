@@ -29,14 +29,14 @@ typedef struct {
 } err_handler_stats_t;
 
 static void err_callback(sem_handler_t *handler, const zone_contents_t *zone,
-                         const zone_node_t *node, sem_error_t error, const char *data)
+                         const knot_dname_t *node, sem_error_t error, const char *data)
 {
 	assert(handler != NULL);
 	assert(zone != NULL);
 	err_handler_stats_t *stats = (err_handler_stats_t *)handler;
 
 	knot_dname_txt_storage_t buff;
-	char *owner = knot_dname_to_str(buff, (node != NULL ? node->owner : zone->apex->owner),
+	char *owner = knot_dname_to_str(buff, (node != NULL ? node : zone->apex->owner),
 	                                sizeof(buff));
 	if (owner == NULL) {
 		owner = "";
