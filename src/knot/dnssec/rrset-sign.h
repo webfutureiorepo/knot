@@ -95,6 +95,11 @@ int knot_synth_rrsig(uint16_t type, const knot_rdataset_t *rrsig_rrs,
                      knot_rdataset_t *out_sig, knot_mm_t *mm);
 
 /*!
+ * \brief Determines if a RRSIG exists, covering the specified type.
+ */
+bool knot_synth_rrsig_exists(uint16_t type, const knot_rdataset_t *rrsig_rrs);
+
+/*!
  * \brief Check if RRSIG signature is valid.
  *
  * \param covered     RRs covered by the signature.
