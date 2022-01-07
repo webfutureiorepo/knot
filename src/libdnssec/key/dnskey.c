@@ -55,10 +55,19 @@ int dnskey_rdata_to_crypto_key(const dnssec_binary_t *rdata, gnutls_pubkey_t *ke
 	assert(rdata);
 	assert(key_ptr);
 
-	uint8_t algorithm = 0;
+	uint8_t algorithm = 0, protocol = 0, flags_hi = 0;
 	dnssec_binary_t rdata_pubkey = { 0 };
 
 	wire_ctx_t wire = binary_init(rdata);
+
+	wire_ctx_set_offset(&wire, DNSKEY_RDATA_OFFSET_FLAGS);
+	flags_hi = wire_ctx_read_u8(&wire);
+	wire_ctx_set_offset(&wire, DNSKEY_RDATA_OFFSET_PROTOCOL);
+	protocol = wire_ctx_read_u8(&wire);
+	if (flags_hi != 0x1 || protocol != 0x3) {
+		return DNSSEC_INVALID_PUBLIC_KEY;
+	}
+
 	wire_ctx_set_offset(&wire, DNSKEY_RDATA_OFFSET_ALGORITHM);
 	algorithm = wire_ctx_read_u8(&wire);
 	wire_ctx_set_offset(&wire, DNSKEY_RDATA_OFFSET_PUBKEY);
