@@ -460,6 +460,11 @@ static int check_nsec_bitmap(zone_node_t *node, void *ctx)
 		    found_nsec3 != NULL) {
 			return KNOT_ERROR;
 		}
+		if (prev_nsec3 == NULL) {
+			data->update->validation_hint.node = (nsec_node == NULL ? node->owner : nsec_node->owner);
+			data->update->validation_hint.rrtype = KNOT_RRTYPE_ANY;
+			return KNOT_DNSSEC_ENSEC_BITMAP;
+		}
 		knot_rdataset_t *nsec3 = node_rdataset(prev_nsec3, KNOT_RRTYPE_NSEC3);
 		if (nsec3 == NULL) {
 			return KNOT_ERROR;
