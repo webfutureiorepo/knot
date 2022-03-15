@@ -108,6 +108,8 @@ static zone_t *create_zone_reload(conf_t *conf, const knot_dname_t *name,
 		replan_load_updated(zone, old_zone);
 	} else {
 		zone->zonefile = old_zone->zonefile;
+		memcpy(&zone->notifailed, &old_zone->notifailed, sizeof(zone->notifailed));
+		memset(&old_zone->notifailed, 0, sizeof(zone->notifailed));
 		replan_load_current(conf, zone, old_zone);
 	}
 
