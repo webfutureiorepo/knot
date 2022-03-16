@@ -157,6 +157,7 @@ class Server(object):
         self.ctlkeyfile = None
         self.tsig = None
         self.tsig_test = None
+        self.tsig_xfr = None
         self.no_xfr_edns = None
 
         self.zones = dict()
@@ -982,21 +983,27 @@ class Bind(Server):
             s.item("algorithm", t.alg)
             s.item_str("secret", t.key)
             s.end()
+            t = self.tsig_xfr
+            s.begin("key", t.name)
+            s.item("# XFR key")
+            s.item("algorithm", t.alg)
+            s.item_str("secret", t.key)
+            s.end()
 
             keys = set() # Duplicy check.
             for zone in sorted(self.zones):
                 z = self.zones[zone]
                 for master in z.masters:
-                    if master.tsig.name not in keys:
-                        t = master.tsig
+                    if master.tsig_xfr.name not in keys:
+                        t = master.tsig_xfr
                         s.begin("key", t.name)
                         s.item("algorithm", t.alg)
                         s.item_str("secret", t.key)
                         s.end()
                         keys.add(t.name)
                 for slave in z.slaves:
-                    if slave.tsig and slave.tsig.name not in keys:
-                        t = slave.tsig
+                    if slave.tsig_xfr and slave.tsig_xfr.name not in keys:
+                        t = slave.tsig_xfr
                         s.begin("key", t.name)
                         s.item("algorithm", t.alg)
                         s.item_str("secret", t.key)
@@ -1017,9 +1024,9 @@ class Bind(Server):
                 for master in z.masters:
                     if self.tsig:
                         masters += "%s port %i key %s; " \
-                                   % (master.addr, master.port, master.tsig.name)
+                                   % (master.addr, master.port, master.tsig_xfr.name)
                         if not master.disable_notify:
-                            masters_notify += "key %s; " % master.tsig.name
+                            masters_notify += "key %s; " % master.tsig_xfr.name
                     else:
                         masters += "%s port %i; " \
                                    % (master.addr, master.port)
@@ -1043,7 +1050,7 @@ class Bind(Server):
                         continue
                     if self.tsig:
                         slaves += "%s port %i key %s; " \
-                                  % (slave.addr, slave.port, self.tsig.name)
+                                  % (slave.addr, slave.port, self.tsig_xfr.name)
                     else:
                         slaves += "%s port %i; " % (slave.addr, slave.port)
                 if slaves:
@@ -1060,10 +1067,11 @@ class Bind(Server):
                 else:
                     s.item("allow-update", "{ %s}" % upd)
 
-            if self.tsig or self.tsig_test:
-                s.item("allow-transfer", "{%s%s }" %
+            if self.tsig or self.tsig_test or self.tsig_xfr:
+                s.item("allow-transfer", "{%s%s%s }" %
                        ((" key %s;" % self.tsig.name) if self.tsig else "",
-                        (" key %s;" % self.tsig_test.name) if self.tsig_test else ""))
+                        (" key %s;" % self.tsig_test.name) if self.tsig_test else "",
+                        (" key %s;" % self.tsig_xfr.name) if self.tsig_xfr else ""))
             else:
                 s.item("allow-transfer", "{ any; }")
 
@@ -1230,9 +1238,15 @@ class Knot(Server):
                         acl += ", "
                     acl += "acl_%s" % master.name
             knotconf.item("master", "[%s]" % masters)
-        if zone.slaves:
+        zslaves = zone.slaves
+        if zone.catalog_zone and zone.catalog_zone != zone:
+            zslaves = set(list(zslaves or []) + list(zone.catalog_zone.slaves or []))
+        if zslaves:
             slaves = ""
-            for slave in zone.slaves:
+            for slave in zslaves:
+                if acl:
+                    acl += ", "
+                acl += "acl_%s" % slave.name
                 if slave.disable_notify:
                     continue
                 if slaves:
@@ -1280,20 +1294,23 @@ class Knot(Server):
 
         if self.tsig:
             s.begin("key")
-            self._key(s, self.tsig)
-            self._key(s, self.tsig_test)
 
             keys = set() # Duplicy check.
+            for t in [ self.tsig, self.tsig_test, self.tsig_xfr ]:
+                if t and t.name not in keys:
+                    self._key(s, t)
+                    keys.add(t.name)
+
             for zone in sorted(self.zones):
                 z = self.zones[zone]
                 for master in z.masters:
-                    if master.tsig.name not in keys:
-                        t = master.tsig
+                    if master.tsig_xfr.name not in keys:
+                        t = master.tsig_xfr
                         self._key(s, t)
                         keys.add(t.name)
                 for slave in z.slaves:
-                    if slave.tsig.name not in keys:
-                        t = slave.tsig
+                    if slave.tsig_xfr.name not in keys:
+                        t = slave.tsig_xfr
                         self._key(s, t)
                         keys.add(t.name)
             s.end()
@@ -1310,7 +1327,7 @@ class Knot(Server):
                     s.id_item("id", master.name)
                     s.item_str("address", "%s@%s" % (master.addr, master.port))
                     if master.tsig:
-                        s.item_str("key", master.tsig.name)
+                        s.item_str("key", master.tsig_xfr.name)
                     if master.no_xfr_edns:
                         s.item_str("no-edns", "on")
                     servers.add(master.name)
@@ -1321,8 +1338,8 @@ class Knot(Server):
                         have_remote = True
                     s.id_item("id", slave.name)
                     s.item_str("address", "%s@%s" % (slave.addr, slave.port))
-                    if slave.tsig:
-                        s.item_str("key", slave.tsig.name)
+                    if self.tsig_xfr:
+                        s.item_str("key", self.tsig_xfr.name)
                     servers.add(slave.name)
             for parent in z.dnssec.ksk_sbm_check + [ z.dnssec.ds_push ] if z.dnssec.ds_push else z.dnssec.ksk_sbm_check:
                 if parent.name not in servers:
@@ -1356,8 +1373,8 @@ class Knot(Server):
                 if master.name not in servers:
                     s.id_item("id", "acl_%s" % master.name)
                     s.item_str("address", master.addr)
-                    if master.tsig:
-                        s.item_str("key", master.tsig.name)
+                    if master.tsig_xfr:
+                        s.item_str("key", master.tsig_xfr.name)
                     s.item("action", "notify")
                     servers.add(master.name)
             for slave in z.slaves:
@@ -1365,8 +1382,8 @@ class Knot(Server):
                     continue
                 s.id_item("id", "acl_%s" % slave.name)
                 s.item_str("address", slave.addr)
-                if slave.tsig:
-                    s.item_str("key", slave.tsig.name)
+                if self.tsig_xfr:
+                    s.item_str("key", self.tsig_xfr.name)
                 s.item("action", "transfer")
                 servers.add(slave.name)
         s.end()

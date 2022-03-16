@@ -145,7 +145,9 @@ class Test(object):
 
         if self.tsig and not tsig:
             srv.tsig = dnstest.keys.Tsig()
+            srv.tsig_xfr = dnstest.keys.Tsig()
         else:
+            srv.tsig_xfr = tsig
             srv.tsig = tsig
 
         srv.tsig_test = self.tsig
