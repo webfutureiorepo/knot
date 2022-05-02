@@ -29,3 +29,57 @@ int quic_params_copy(quic_params_t *dst, const quic_params_t *src);
 
 void quic_params_clean(quic_params_t *params);
 
+#ifdef LIBNGTCP2
+
+#include <ngtcp2/ngtcp2.h>
+
+#include "utils/common/tls.h"
+
+#define QUIC_DEFAULT_VERSION "-VERS-ALL:+VERS-TLS1.3"
+#define QUIC_DEFAULT_CIPHERS "-CIPHER-ALL:+AES-128-GCM:+AES-256-GCM:+CHACHA20-POLY1305:+AES-128-CCM"
+#define QUIC_DEFAULT_GROUPS  "-GROUP-ALL:+GROUP-SECP256R1:+GROUP-X25519:+GROUP-SECP384R1:+GROUP-SECP521R1"
+#define QUIC_PRIORITY        "%DISABLE_TLS13_COMPAT_MODE:NORMAL:"QUIC_DEFAULT_VERSION":"QUIC_DEFAULT_CIPHERS":"QUIC_DEFAULT_GROUPS
+
+
+typedef enum {
+	OPENING,
+	CONNECTED,
+	CLOSING
+} quic_state_t;
+
+typedef struct {
+	// Parameters
+	quic_params_t params;
+
+	// Context
+	tls_ctx_t *tls;
+	/*! ngtcp2 (QUIC) setting. */
+	ngtcp2_conn *conn;
+	ngtcp2_settings settings;
+	ngtcp2_pkt_info pi;
+	uint8_t secret[32];
+	quic_state_t state;
+	/*! Stream context */
+	struct {
+		int64_t id;
+		uint64_t sent;
+		struct iovec in_storage;
+		struct iovec *out_storage;
+		size_t out_storage_it;
+		size_t out_storage_len;
+		size_t out_storage_total;
+	} stream;
+	uint64_t timestamp;
+	ngtcp2_connection_close_error last_err;
+} quic_ctx_t;
+
+extern const gnutls_datum_t quic_alpn[];
+
+uint64_t quic_timestamp(void);
+
+int quic_generate_secret(uint8_t *buf, size_t buflen);
+
+int quic_ctx_init(quic_ctx_t *ctx, tls_ctx_t *tls_ctx,
+        const quic_params_t *params);
+
+#endif //LIBNGTCP2

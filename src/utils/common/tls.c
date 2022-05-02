@@ -468,7 +468,8 @@ int tls_ctx_init(tls_ctx_t *ctx, const tls_params_t *params,
 		}
 	}
 
-	gnutls_certificate_set_verify_function(ctx->credentials, verify_certificate);
+	// TODO uncomment on release
+	//gnutls_certificate_set_verify_function(ctx->credentials, verify_certificate);
 
 	// Setup client keypair if specified. Both key and cert files must be provided.
 	if (params->keyfile != NULL && params->certfile != NULL) {
