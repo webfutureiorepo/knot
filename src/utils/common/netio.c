@@ -743,6 +743,10 @@ void net_close(net_t *net)
 		return;
 	}
 
+#ifdef LIBNGTCP2
+	quic_ctx_close(&net->quic);
+#endif
+	// TODO QUIC close TLS also
 	tls_ctx_close(&net->tls);
 	close(net->sockfd);
 	net->sockfd = -1;
@@ -776,6 +780,9 @@ void net_clean(net_t *net)
 
 #ifdef LIBNGHTTP2
 	https_ctx_deinit(&net->https);
+#endif
+#ifdef LIBNGTCP2
+	quic_ctx_deinit(&net->quic);
 #endif
 	tls_ctx_deinit(&net->tls);
 }
