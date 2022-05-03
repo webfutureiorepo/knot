@@ -345,3 +345,13 @@ int catalog_copy(knot_lmdb_db_t *from, knot_lmdb_db_t *to,
 	knot_lmdb_commit(&txn_w);
 	return txn_w.ret;
 }
+
+bool is_catalog_zone(conf_t *conf, knot_dname_t *zone)
+{
+	assert(conf);
+
+	conf_val_t role_val = conf_zone_get(conf, C_CATALOG_ROLE, zone);
+	unsigned role = conf_opt(&role_val);
+	return (role == CATALOG_ROLE_INTERPRET) ||
+	       (role == CATALOG_ROLE_GENERATE);
+}
