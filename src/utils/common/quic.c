@@ -725,4 +725,60 @@ int quic_ctx_connect(quic_ctx_t *ctx, int sockfd, struct addrinfo *dst_addr)
 	return KNOT_EOK;
 }
 
+int quic_send_dns_query(quic_ctx_t *ctx, int sockfd, struct addrinfo *srv,
+        const uint8_t *buf, const size_t buf_len)
+{
+	if (ctx == NULL || buf == NULL) {
+		return KNOT_NET_ESEND;
+	}
+
+	ngtcp2_transport_params params;
+	uint16_t query_length = htons(buf_len);
+	ngtcp2_vec datav[] = {
+		{
+			.base = (uint8_t *)&query_length,
+			.len = sizeof(uint16_t)
+		},{
+			.base = (uint8_t *)buf,
+			.len = buf_len
+		}
+	};
+	size_t datavlen = sizeof(datav)/sizeof(*datav);
+	ngtcp2_vec *pdatav = datav;
+
+	struct pollfd pfd = {
+		.fd = sockfd,
+		.events = POLLIN,
+		.revents = 0,
+	};
+
+	ctx->stream.sent += buf_len + sizeof(uint16_t);
+	while (ctx->stream.sent) {
+		if (quic_timeout(ctx->timestamp, ctx->tls->wait)) {
+			return KNOT_NET_ETIMEOUT;
+		}
+		int ret = quic_send_data(ctx, sockfd, srv->ai_family, pdatav, datavlen);
+		if (ret != KNOT_EOK) {
+			return ret;
+		}
+		pdatav = NULL;
+		datavlen = 0;
+
+		ngtcp2_conn_get_remote_transport_params(ctx->conn, &params);
+		int timeout = quic_ceil_duration_to_ms(params.max_ack_delay);
+		ret = poll(&pfd, 1, timeout);
+		if (ret < 0) {
+			return knot_map_errno();
+		} else if (ret == 0) {
+			continue;
+		}
+		ret = quic_recv(ctx, sockfd);
+		if (ret != KNOT_EOK) {
+			return ret;
+		}
+	}
+
+	return KNOT_EOK;
+}
+
 #endif
