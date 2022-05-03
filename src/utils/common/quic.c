@@ -529,6 +529,26 @@ static int quic_recv(quic_ctx_t *ctx, int sockfd)
 	return KNOT_EOK;
 }
 
+static int quic_respcpy(quic_ctx_t *ctx, uint8_t *buf, const size_t buf_len)
+{
+	assert(ctx && buf && buf_len > 0);
+	if (ctx->stream.out_storage && ctx->stream.out_storage_it < ctx->stream.out_storage_len) {
+		size_t len = ctx->stream.out_storage[ctx->stream.out_storage_it].iov_len;
+		if (buf_len < len) {
+			return KNOT_ENOMEM;
+		}
+		memcpy(buf, ctx->stream.out_storage[ctx->stream.out_storage_it].iov_base, len);
+		ctx->stream.out_storage_it++;
+		if (ctx->stream.out_storage_it == ctx->stream.out_storage_len) {
+			free(ctx->stream.out_storage);
+			ctx->stream.out_storage = NULL;
+			ctx->stream.out_storage_len = 0;
+		}
+		return len;
+	}
+	return 0;
+}
+
 uint64_t quic_timestamp(void)
 {
 	struct timespec ts;
@@ -779,6 +799,55 @@ int quic_send_dns_query(quic_ctx_t *ctx, int sockfd, struct addrinfo *srv,
 	}
 
 	return KNOT_EOK;
+}
+
+int quic_recv_dns_response(quic_ctx_t *ctx, uint8_t *buf, const size_t buf_len,
+        struct addrinfo *srv)
+{
+	if (ctx == NULL || ctx->tls == NULL || buf == NULL) {
+		return KNOT_EINVAL;
+	}
+
+	int ret = quic_respcpy(ctx, buf, buf_len);
+	if (ret != 0) {
+		return ret;
+	}
+
+	int sockfd = ctx->tls->sockfd;
+
+	struct pollfd pfd = {
+		.fd = sockfd,
+		.events = POLLIN,
+		.revents = 0,
+	};
+
+	ngtcp2_transport_params params;
+	while (!quic_timeout(ctx->timestamp, ctx->tls->wait)) {
+		ngtcp2_conn_get_remote_transport_params(ctx->conn, &params);
+		int timeout = quic_ceil_duration_to_ms(params.max_ack_delay);
+		ret = poll(&pfd, 1, timeout);
+		if (ret < 0) {
+			return knot_map_errno();
+		} else if (ret == 0) {
+			goto send;
+		}
+
+		ret = quic_recv(ctx, sockfd);
+		if (ret != KNOT_EOK) {
+			return ret;
+		}
+		ret = quic_respcpy(ctx, buf, buf_len);
+		if (ret != 0) {
+			return ret;
+		}
+
+		send: ret = quic_send(ctx, sockfd, srv->ai_family);
+		if (ret != KNOT_EOK) {
+			return ret;
+		}
+	}
+
+	return KNOT_NET_ETIMEOUT;
 }
 
 #endif

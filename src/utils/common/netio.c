@@ -622,6 +622,13 @@ int net_receive(const net_t *net, uint8_t *buf, const size_t buf_len)
 		.revents = 0,
 	};
 
+#ifdef LIBNGTCP2
+	// Receive data over QUIC.
+	if (net->quic.params.enable) {
+		return quic_recv_dns_response((quic_ctx_t *)&net->quic, buf,
+		                              buf_len, net->srv);
+	} else
+#endif
 	// Receive data over UDP.
 	if (net->socktype == SOCK_DGRAM) {
 		struct sockaddr_storage from;
