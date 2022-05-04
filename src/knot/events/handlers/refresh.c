@@ -19,7 +19,6 @@
 
 #include "contrib/mempattern.h"
 #include "libdnssec/random.h"
-#include "knot/catalog/catalog_db.h"
 #include "knot/common/log.h"
 #include "knot/conf/conf.h"
 #include "knot/dnssec/zone-events.h"
@@ -194,7 +193,7 @@ static void finalize_edns_expire(struct refresh_data *data)
 
 static void fill_expires_in(char *expires_in, size_t size, const struct refresh_data *data)
 {
-	if (!is_catalog_zone(data->conf, data->zone->name)) {
+	if (!data->zone->is_catalog_flag) {
 		(void)snprintf(expires_in, size,
 		               ", expires in %u seconds", data->expire_timer);
 	}

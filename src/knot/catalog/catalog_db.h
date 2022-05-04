@@ -16,7 +16,6 @@
 
 #pragma once
 
-#include "knot/conf/conf.h"
 #include "knot/journal/knot_lmdb.h"
 #include "libknot/libknot.h"
 
@@ -186,14 +185,3 @@ int catalog_apply(catalog_t *cat, const knot_dname_t *for_member,
  */
 int catalog_copy(knot_lmdb_db_t *from, knot_lmdb_db_t *to,
                  const knot_dname_t *cat_only, bool read_rw_txn);
-
-/*!
- * \brief Check if the zone is a catalog zone (interpreted or generated).
- *
- * \param conf    Configuration.
- * \param zone    Zone name.
- *
- * \return   true if it's a catalog zone, false otherwise
- */
-
-bool is_catalog_zone(conf_t *conf, knot_dname_t *zone);
