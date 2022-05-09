@@ -42,6 +42,7 @@ typedef struct xdp_handle_ctx {
 	knot_tcp_table_t *syn_table;
 	knot_xquic_table_t *quic_table;
 
+	bool udp; // TODO: use this
 	bool tcp;
 	size_t tcp_max_conns;
 	size_t tcp_syn_conns;
@@ -75,6 +76,7 @@ void xdp_handle_reconfigure(xdp_handle_ctx_t *ctx)
 {
 	rcu_read_lock();
 	conf_t *pconf = conf();
+	ctx->udp            = pconf->cache.xdp_udp;
 	ctx->tcp            = pconf->cache.xdp_tcp;
 	ctx->tcp_max_conns  = pconf->cache.xdp_tcp_max_clients / pconf->cache.srv_xdp_threads;
 	ctx->tcp_syn_conns  = 2 * ctx->tcp_max_conns;
