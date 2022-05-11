@@ -365,3 +365,9 @@ void knot_xquic_stream_mark_sent(knot_xquic_conn_t *xconn, int64_t stream_id, si
 		}
 	}
 }
+
+bool xquic_require_retry(knot_xquic_table_t *table)
+{
+	(void)table;
+	return true;
+}

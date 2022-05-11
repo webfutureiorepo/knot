@@ -129,3 +129,5 @@ uint8_t *knot_xquic_stream_add_data(knot_xquic_conn_t *xconn, int64_t stream_id,
 void knot_xquic_stream_ack_data(knot_xquic_conn_t *xconn, int64_t stream_id, size_t end_acked, bool keep_stream);
 
 void knot_xquic_stream_mark_sent(knot_xquic_conn_t *xconn, int64_t stream_id, size_t amount_sent);
+
+bool xquic_require_retry(knot_xquic_table_t *table);

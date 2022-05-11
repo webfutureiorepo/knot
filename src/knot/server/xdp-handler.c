@@ -136,9 +136,9 @@ xdp_handle_ctx_t *xdp_handle_init(knot_xdp_socket_t *xdp_sock)
 		}
 	}
 
-	conf_t *pconf = conf();
 	if (ctx->quic_port > 0) {
 #ifdef ENABLE_XDP_QUIC
+		conf_t *pconf = conf();
 		char *tls_cert = conf_tls(pconf, C_TLS_CERT);
 		char *tls_key = conf_tls(pconf, C_TLS_KEY);
 		ctx->quic_table = knot_xquic_table_new(ctx->tcp_max_conns, tls_cert, tls_key);
